@@ -10,6 +10,7 @@ const listItemEl = document.createElement('li');
 const feedbackListEl = document.querySelector('.feedbacks');
 const submitButtonEl = document.querySelector('.submit-btn');
 const spinnerEl = document.querySelector('.spinner');
+const hashTagsListEl = document.querySelector('.hashtags');
 
 const renderFeedbackItem = (feedbackItem) => {
     // new feedback item HTML
@@ -133,11 +134,44 @@ const submitHandler = (event) => {
 formEl.addEventListener('submit', submitHandler);
 
 // -- FEEDBACK LIST COMPONENT --
-const fetchFeedbacks = fetch(`${BASE_API_URL}/feedbacks`)
+
+feedbackListEl.addEventListener('click', (event) => {
+    const clickedEl = event.target;
+
+    // determine if user intended to upvote or expand
+    const upvoteIntention = clickedEl.className.includes('upvote');
+
+    if (upvoteIntention) {
+        // upvote
+        const upvoteBtnEl = clickedEl.closest('.upvote');
+
+        // prevent double click
+        upvoteBtnEl.disabled = true;
+
+        // select the update count element within the upvote button
+        const upvoteCountEl = upvoteBtnEl.querySelector('.upvote__count');
+
+        // get the current upvote count
+        let currentUpvoteCount = Number(upvoteCountEl.textContent);
+
+        // update the upvote count
+        upvoteCountEl.textContent = ++currentUpvoteCount;
+    } else {
+        // expand
+        const feedbackEl = clickedEl.closest('.feedback');
+        feedbackEl.classList.toggle('feedback--expand');
+    }
+});
+
+// fetch feedbacks from the server
+
+fetch(`${BASE_API_URL}/feedbacks`)
     .then((resp) => resp.json())
     .then((data) => {
         // remove spinner
         spinnerEl.remove();
+
+        feedbacks = data.feedbacks;
 
         data.feedbacks.forEach((feedbackItem) =>
             renderFeedbackItem(feedbackItem)
@@ -147,4 +181,37 @@ const fetchFeedbacks = fetch(`${BASE_API_URL}/feedbacks`)
         feedbackListEl.textContent = `Failed to load feedbacks: Error message: ${err}`;
     });
 
-fetchFeedbacks();
+// -- HASHTAGS COMPONENT --
+console.log('first');
+const hashListClickHandler = (event) => {
+    // get the clicked element
+    const clickedEl = event.target;
+
+    // stop function if click happened in list, but outside buttons
+    if (clickedEl.className === 'hashtags') return;
+
+    // extract company name
+    const companyNameFromHashtag = clickedEl.textContent
+        .substring(1)
+        .toLowerCase()
+        .trim();
+
+    // iterate over each feedback item in the list
+    feedbackListEl.childNodes.forEach((childNode) => {
+        // stop this iteration if it's a text node
+        if (childNode.nodeType === 3) return;
+
+        // extract company name
+        const companyNameFromFeedbackItem = childNode
+            .querySelector('.feedback__company')
+            .textContent.toLowerCase()
+            .trim();
+
+        // remove feedback item from list if company names are not equal
+        if (companyNameFromHashtag !== companyNameFromFeedbackItem) {
+            childNode.remove();
+        }
+    });
+};
+
+hashTagsListEl.addEventListener('click', hashListClickHandler);
